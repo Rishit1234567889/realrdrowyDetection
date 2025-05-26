@@ -1,0 +1,16 @@
+# Requirements for conda-based solution
+# dlib and opencv are installed via conda, so exclude them here
+
+# Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Scientific computing (numpy is included with conda dlib/opencv)
+scipy==1.11.4
+
+# Image processing
+Pillow==10.1.0
+imutils==0.5.4
+
+# Utilities
+python-dateutil==2.8.2

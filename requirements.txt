@@ -1,0 +1,24 @@
+# Driver Drowsiness Detection System Requirements
+# Core dependencies for Flask API and computer vision
+# Updated for Python 3.9 compatibility
+
+# Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Computer Vision and Machine Learning
+opencv-python==4.8.1.78
+dlib==19.24.2
+scipy==1.11.4
+numpy==1.26.2
+
+# Image processing
+Pillow==10.1.0
+imutils==0.5.4
+
+# Utilities
+python-dateutil==2.8.2
+
+# Optional: For better performance (uncomment if needed)
+# opencv-contrib-python==4.8.1.78
+# mediapipe==0.10.7
