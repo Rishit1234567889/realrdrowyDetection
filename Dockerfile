@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     libgtk2.0-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /
+WORKDIR /app
 
 # Create conda environment
 RUN conda create -n drowsiness python=3.9 -y
@@ -23,6 +23,17 @@ ENV PATH /opt/conda/envs/drowsiness/bin:$PATH
 
 # Install dlib and opencv via conda (pre-compiled)
 RUN conda install -n drowsiness -c conda-forge dlib opencv -y
+
+
+# Create directory for cascade files
+RUN mkdir -p /app/data/haarcascades
+
+# Download Haar cascade files
+RUN wget -O /app/data/haarcascades/haarcascade_frontalface_default.xml \
+    https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml
+
+RUN wget -O /app/data/haarcascades/haarcascade_eye.xml \
+    https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_eye.xml
 
 # Install remaining packages via pip
 COPY requirements_conda.txt ./requirements.txt

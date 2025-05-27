@@ -16,6 +16,7 @@ from scipy.spatial import distance as dist
 import threading
 import queue
 import math
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -50,7 +51,7 @@ class DrowsinessDetector:
         """Initialize detector with face cascade and landmark predictor"""
         try:
             # Initialize face detector (Haar Cascade - fast detection)
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            self.face_cascade = self.load_cascade('haarcascade_frontalface_default.xml')
             
             # Initialize dlib's face detector and landmark predictor
             self.detector = dlib.get_frontal_face_detector()
@@ -73,6 +74,47 @@ class DrowsinessDetector:
             self.face_cascade = None
             self.detector = None
             self.predictor = None
+
+    def load_cascade(self, cascade_name):
+        """Load Haar cascade from available paths"""
+        possible_paths = [
+            # Try cv2.data path first (if available)
+            None,  # Will be set dynamically
+            # Try conda environment path
+            f"/opt/conda/envs/drowsiness/share/opencv4/haarcascades/{cascade_name}",
+            # Try system paths
+            f"/usr/share/opencv4/haarcascades/{cascade_name}",
+            f"/opt/conda/share/opencv4/haarcascades/{cascade_name}",
+            # Try current directory as fallback
+            cascade_name
+        ]
+        
+        # Try cv2.data path first if available
+        try:
+            cv2_data_path = cv2.data.haarcascades + cascade_name
+            possible_paths[0] = cv2_data_path
+        except AttributeError:
+            print("cv2.data not available, trying alternative paths...")
+        
+        for path in possible_paths:
+            if path is None:
+                continue
+                
+            try:
+                if os.path.exists(path):
+                    cascade = cv2.CascadeClassifier(path)
+                    if not cascade.empty():
+                        print(f"Successfully loaded cascade from: {path}")
+                        return cascade
+                    else:
+                        print(f"Found file but failed to load cascade: {path}")
+                else:
+                    print(f"Cascade file not found at: {path}")
+            except Exception as e:
+                print(f"Error loading cascade from {path}: {e}")
+        
+        print(f"Failed to load {cascade_name} from all paths")
+        return None
 
     def calculate_ear(self, eye_landmarks):
         """
@@ -145,10 +187,20 @@ class DrowsinessDetector:
         try:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
+            # Check if face cascade is loaded
+            if self.face_cascade is None:
+                # Draw error message on frame
+                cv2.putText(frame, "Face cascade not loaded", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                return frame, False
+            
             # Detect faces using Haar cascade (faster)
             faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
             
             if len(faces) == 0:
+                # Draw "No face detected" message
+                cv2.putText(frame, "No face detected", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
                 return frame, False
             
             # Use the largest face
@@ -181,8 +233,8 @@ class DrowsinessDetector:
                 head_tilt = self.calculate_head_tilt(coords)
                 
                 # Draw landmarks
-                for (x, y) in coords:
-                    cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+                for (x_pt, y_pt) in coords:
+                    cv2.circle(frame, (x_pt, y_pt), 1, (0, 255, 0), -1)
                 
                 # Draw eye and mouth contours
                 cv2.drawContours(frame, [left_eye], -1, (0, 255, 0), 1)
@@ -191,9 +243,16 @@ class DrowsinessDetector:
                 
             else:
                 # Fallback to basic detection without landmarks
-                ear = 0.3  # Default safe value
+                # Estimate EAR based on face dimensions (rough approximation)
+                face_height = h
+                face_width = w
+                ear = 0.25 + (face_width / face_height) * 0.1  # Basic estimation
                 mar = 0.3  # Default safe value
                 head_tilt = 0.0
+                
+                # Draw message that landmarks are not available
+                cv2.putText(frame, "Using basic detection", (x, y-10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
             
             # Update counters and detect alerts
             alert_status = "Normal"
@@ -264,6 +323,9 @@ class DrowsinessDetector:
             
         except Exception as e:
             print(f"Error in detection: {e}")
+            # Draw error on frame
+            cv2.putText(frame, f"Detection error: {str(e)[:50]}", (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
             return frame, False
 
 # Initialize detector
